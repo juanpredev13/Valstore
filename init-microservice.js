@@ -2,16 +2,21 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
+// Get service name from CLI
 const name = process.argv[2];
-
 if (!name) {
-  console.error('❌ Debes especificar un nombre para el microservicio.');
-  console.error('Ejemplo: node init-microservice.js user-service');
+  console.error('❌ You must specify a microservice name.');
+  console.error('Example: node init-microservice.js product-service');
   process.exit(1);
 }
 
+// Extract model name (remove "-service" and PascalCase it)
+const baseName = name.replace(/-service$/, '');
+const modelName = baseName.charAt(0).toUpperCase() + baseName.slice(1).replace(/-([a-z])/g, (_, l) => l.toUpperCase());
+
 const base = path.join('services', name);
 
+// Folder structure
 const folders = [
   'src',
   'src/controllers',
@@ -22,10 +27,11 @@ const folders = [
   'prisma',
 ];
 
+// TypeScript config
 const tsconfig = `{
   "compilerOptions": {
     "target": "ES2020",
-    "module": "CommonJS",
+    "module": "ESNext",
     "moduleResolution": "Node",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -41,6 +47,38 @@ const tsconfig = `{
 }
 `;
 
+// package.json with ESM + tsx + pkgroll
+const pkg = `{
+  "name": "${name}",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.mjs"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.mjs",
+    "build": "pkgroll",
+    "test": "echo \\"Error: no test specified\\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.5",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "pkgroll": "^2.11.2"
+  }
+}
+`;
+
 const env = `DATABASE_URL="mongodb+srv://user:pass@cluster.mongodb.net/${name}?retryWrites=true&w=majority"
 PORT=4000
 `;
@@ -50,10 +88,11 @@ dist
 .env
 `;
 
+// Entry point (index.ts)
 const indexTs = `import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
-import userRoutes from './routes/user.routes'
+import ${baseName}Routes from './routes/model.routes.js'
 
 dotenv.config()
 const app = express()
@@ -61,85 +100,74 @@ const PORT = process.env.PORT || 4000
 
 app.use(cors())
 app.use(express.json())
-app.use('/api/users', userRoutes)
+app.use('/api/${baseName}', ${baseName}Routes)
 
 app.listen(PORT, () => {
-  console.log(\`${name} running on port \${PORT}\`)
+  console.log('${name} running on port ' + PORT)
 })
 `;
 
-const userRoutes = `import { Router } from 'express'
-import { getAllUsers, createUser } from '../controllers/user.controller'
+// Generic route file
+const modelRoutes = `import { Router } from 'express'
+import { getAll, create } from '../controllers/model.controller.js'
 
 const router = Router()
 
-router.get('/', getAllUsers)
-router.post('/', createUser)
+router.get('/', getAll)
+router.post('/', create)
 
 export default router
 `;
 
-const userController = `import { Request, Response } from 'express'
-import { PrismaClient } from '@prisma/client'
-
+// Generic controller
+const modelController = `import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
-export const getAllUsers = async (_req: Request, res: Response) => {
-  const users = await prisma.user.findMany()
-  res.json(users)
+export const getAll = async (_req, res) => {
+  const items = await prisma.${baseName}.findMany()
+  res.json(items)
 }
 
-export const createUser = async (req: Request, res: Response) => {
-  const { name, email, password } = req.body
+export const create = async (req, res) => {
+  const data = req.body
   try {
-    const user = await prisma.user.create({
-      data: { name, email, password }
-    })
-    res.status(201).json(user)
+    const item = await prisma.${baseName}.create({ data })
+    res.status(201).json(item)
   } catch (error) {
-    res.status(400).json({ error: 'Email already exists' })
+    res.status(400).json({ error: 'Creation failed' })
   }
 }
 `;
 
-const prismaSchema = `generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "mongodb"
-  url      = env("DATABASE_URL")
-}
-
-model User {
-  id        String   @id @default(auto()) @map("_id") @test.ObjectId
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("user")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// Editable model config
+const modelConfig = `export const model = {
+  name: '${modelName}',
+  fields: [
+    { name: 'name', type: 'String', required: true },
+    { name: 'description', type: 'String' },
+    { name: 'active', type: 'Boolean', default: true }
+  ]
 }
 `;
 
-// Crear carpetas
+// Create folders
 folders.forEach(folder => {
   fs.mkdirSync(path.join(base, folder), { recursive: true });
 });
 
-// Crear archivos base
+// Create files
 fs.writeFileSync(path.join(base, 'tsconfig.json'), tsconfig);
+fs.writeFileSync(path.join(base, 'package.json'), pkg);
 fs.writeFileSync(path.join(base, '.env'), env);
 fs.writeFileSync(path.join(base, '.gitignore'), gitignore);
 fs.writeFileSync(path.join(base, 'src/index.ts'), indexTs);
-fs.writeFileSync(path.join(base, 'src/routes/user.routes.ts'), userRoutes);
-fs.writeFileSync(path.join(base, 'src/controllers/user.controller.ts'), userController);
-fs.writeFileSync(path.join(base, 'prisma/schema.prisma'), prismaSchema);
+fs.writeFileSync(path.join(base, 'src/routes/model.routes.ts'), modelRoutes);
+fs.writeFileSync(path.join(base, 'src/controllers/model.controller.ts'), modelController);
+fs.writeFileSync(path.join(base, 'prisma/model.config.ts'), modelConfig);
 
-// Inicializar npm y dependencias
-console.log(`\n📦 Inicializando npm y Prisma en ${base}...`);
-execSync(`cd ${base} && npm init -y`, { stdio: 'inherit' });
-execSync(`cd ${base} && npm install express cors dotenv @prisma/client`, { stdio: 'inherit' });
-execSync(`cd ${base} && npm install -D prisma typescript ts-node-dev @types/node @types/express`, { stdio: 'inherit' });
+// Install dependencies
+console.log(`\n📦 Installing dependencies in ${base}...`);
+execSync(`cd ${base} && npm install`, { stdio: 'inherit' });
+execSync(`cd ${base} && npm install -D`, { stdio: 'inherit' });
 
-console.log(`\n✅ Microservicio '${name}' creado en ./services/${name}`);
+console.log(`\n✅ Microservice '${name}' with model '${modelName}' created in ./services/${name}`);
