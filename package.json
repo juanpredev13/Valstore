@@ -1,0 +1,21 @@
+{
+  "name": "valstore",
+  "version": "1.0.0",
+  "author": "",
+  "main": "init-microservice.js",
+  "description": "Inventory made legendary.",
+  "keywords": [],
+  "license": "ISC",
+  "scripts": {
+    "generate": "node init-microservice.js"
+  },
+  "type": "module",
+  "dependencies": {
+    "@types/express": "^5.0.1",
+    "express": "^5.1.0",
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0"
+  }
+}

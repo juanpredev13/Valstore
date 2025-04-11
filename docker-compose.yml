@@ -1,0 +1,22 @@
+version: "3.9"
+services:
+
+  user-service:
+    build: ./services/user
+    ports:
+      - "3001:3000"
+    depends_on:
+      - mongo-user
+    env_file:
+      - ./services/user/.env
+
+  mongo-user:
+    image: mongo:6
+    restart: always
+    container_name: mongo-user
+    ports:
+      - "27017:27017"
+    volumes:
+      - user-mongo-data:/data/db
+volumes:
+  user-mongo-data:

@@ -1,0 +1,43 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+bun.lockb
+
+# Dependency directories
+node_modules/
+services/*/node_modules/
+
+# Output
+dist/
+build/
+services/*/dist/
+services/*/build/
+
+# TypeScript
+*.tsbuildinfo
+
+# Environment files
+.env
+services/*/.env
+
+# IDE / OS files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Docker
+**/.docker
+docker-compose.override.yml
+
+# Local db volume (optional if you mount in host)
+user-mongo-data/
+*.local.db
+
+# Bun cache
+.bun
+services/*/.bun
+
+# Optional runtime cache
+.cache/
+services/*/.cache/
