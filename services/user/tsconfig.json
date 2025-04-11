@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "node",
+    "verbatimModuleSyntax": true,
+    "lib": [
+      "ESNext"
+    ],
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "src",
+    "routes",
+    "controllers",
+    "services",
+    "repositories",
+    "models",
+    "types",
+    "di",
+    "dtos"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
+}
